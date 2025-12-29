@@ -1,4 +1,8 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <locale.h>
 
 #define TAILLE 100
 
@@ -55,6 +59,9 @@ int est_lettre(int c) {
 
 
 int main(int argc, char* argv[]) {
+
+    setlocale(LC_CTYPE, "");
+
     if (argc < 2) {
         printf("Usage: %s fichier.txt\n", argv[0]);
         return 1;
@@ -78,9 +85,9 @@ int main(int argc, char* argv[]) {
     int nb_mots = 0;
 
     while ((c = fgetc(f)) != EOF) {
-        if (est_lettre(c)) {
+        if (isalpha((unsigned char)c)) {
 
-            if (i < TAILLE_MAX - 1) {
+            if (i < TAILLE - 1) {
                 mot[i++] = (char)c;
             }
             dans_mot = 1;
@@ -94,23 +101,21 @@ int main(int argc, char* argv[]) {
                 dans_mot = 0;
                 nb_mots++;
                 ajouterEnTete(&l_tout, mot);
-                CellulePoint *c = chercherMot(l_unique, mot);
-                if (c != NULL){
+                if (chercherMot(l_unique, mot) == NULL){
                     ajouterEnTete(&l_unique, mot);
                 }
             }
         }
         
-        /* Cas où le fichier se termine par une lettre */
-        if (dans_mot) {
-            mot[i] = '\0';
-            printf("Mot lu : %s\n", mot);
-            nb_mots++;
-            ajouterEnTete(&l_tout, mot);
-            CellulePoint *c = chercherMot(l_unique, mot);
-            if (c != NULL){
-                ajouterEnTete(&l_unique, mot);
-            }
+    }
+    /* Cas où le fichier se termine par une lettre */
+    if (dans_mot) {
+        mot[i] = '\0';
+        printf("Mot lu : %s\n", mot);
+        nb_mots++;
+        ajouterEnTete(&l_tout, mot);
+        if (chercherMot(l_unique, mot) == NULL){
+            ajouterEnTete(&l_unique, mot);
         }
     }
 
