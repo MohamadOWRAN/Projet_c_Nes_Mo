@@ -57,10 +57,28 @@ int est_lettre(int c) {
     return 0;
 }
 
+int est_separateur(int c) {
+    if ( c == '\0' || c == ' '|| c == '\n' || c == '.' || c == ',' || c == 39 || c == ';'  || c == ':' || c == '!' || c == '?') {
+        return 1;
+    }
+    return 0;
+}
+
+
+void afficherListe(ListeChar liste) {
+    if (liste == NULL) {
+        printf("La liste est vide.\n");
+        return;
+    }
+
+    printf("Liste :\n");
+    for (ListeChar tmp = liste; tmp != NULL; tmp = tmp->suivant) {
+        printf("%s\n", tmp->p);
+    }
+}
+
 
 int main(int argc, char* argv[]) {
-
-    setlocale(LC_CTYPE, "");
 
     if (argc < 2) {
         printf("Usage: %s fichier.txt\n", argv[0]);
@@ -85,15 +103,7 @@ int main(int argc, char* argv[]) {
     int nb_mots = 0;
 
     while ((c = fgetc(f)) != EOF) {
-        if (isalpha((unsigned char)c)) {
-
-            if (i < TAILLE - 1) {
-                mot[i++] = (char)c;
-            }
-            dans_mot = 1;
-        }
-
-        else {
+        if (est_separateur(c)) {
             if (dans_mot) {
                 mot[i] = '\0';   // fin du mot
                 printf("Mot lu : %s\n", mot); // ou sauvegarde
@@ -105,6 +115,14 @@ int main(int argc, char* argv[]) {
                     ajouterEnTete(&l_unique, mot);
                 }
             }
+            
+        }
+
+        else {
+            if (i < TAILLE - 1) {
+                mot[i++] = (char)c;
+            }
+            dans_mot = 1;
         }
         
     }
@@ -122,5 +140,9 @@ int main(int argc, char* argv[]) {
     fclose(f);
 
     printf("Nombre total de mots : %d\n", nb_mots);
+
+    afficherListe(l_tout);
+
+    afficherListe(l_unique);
     return 0;
 }

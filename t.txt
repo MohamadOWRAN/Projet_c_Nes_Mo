@@ -1,7 +1,7 @@
 Le langage C est un langage de programmation puissant.
 Il est utilisé pour le développement de systèmes, de logiciels embarqués
 et de programmes nécessitant de hautes performances.
-
+l'accent'sad
 Le C permet une gestion fine de la mémoire.
 La mémoire est un élément central en programmation système.
 
