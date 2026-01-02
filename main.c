@@ -10,6 +10,7 @@
 
 typedef struct cellulePoint {
     char *p;
+    int occ;
     struct cellulePoint *suivant;
 } CellulePoint, *ListeChar ;
 
@@ -26,6 +27,7 @@ CellulePoint* allouerCellule(char *pval){
         return NULL;
     }
     
+    cellule->occ = 1; 
     cellule->suivant = NULL;
     return cellule;
 }
@@ -43,6 +45,7 @@ void ajouterEnTete(ListeChar *liste, char *val) {
 CellulePoint* chercherMot(ListeChar liste, const char *mot) {
     while (liste != NULL) {
         if (strcmp(liste->p, mot) == 0) {
+            liste->occ++;  
             return liste;
         }
         liste = liste->suivant;
@@ -51,14 +54,20 @@ CellulePoint* chercherMot(ListeChar liste, const char *mot) {
 }
 
 int est_lettre(int c) {
-    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) {
-        return 1;
-    }
-    return 0;
+    return (isalpha((unsigned char)c));
 }
 
 int est_separateur(int c) {
-    if ( c == '\0' || c == ' '|| c == '\n' || c == '.' || c == ',' || c == 39 || c == ';'  || c == ':' || c == '!' || c == '?') {
+    if ( c == '\0' 
+        || c == ' '
+        || c == '\n' 
+        || c == '.' 
+        || c == ',' 
+        || c == 39 
+        || c == ';'  
+        || c == ':' 
+        || c == '!' 
+        || c == '?') {
         return 1;
     }
     return 0;
@@ -73,7 +82,7 @@ void afficherListe(ListeChar liste) {
 
     printf("Liste :\n");
     for (ListeChar tmp = liste; tmp != NULL; tmp = tmp->suivant) {
-        printf("%s\n", tmp->p);
+        printf("%s -> %d\n", tmp->p, tmp->occ); 
     }
 }
 
@@ -115,7 +124,7 @@ int main(int argc, char* argv[]) {
                     ajouterEnTete(&l_unique, mot);
                 }
             }
-            
+
         }
 
         else {
@@ -124,9 +133,9 @@ int main(int argc, char* argv[]) {
             }
             dans_mot = 1;
         }
-        
+
     }
-    /* Cas où le fichier se termine par une lettre */
+   /* Cas où le fichier se termine par une lettre */
     if (dans_mot) {
         mot[i] = '\0';
         printf("Mot lu : %s\n", mot);
@@ -141,8 +150,9 @@ int main(int argc, char* argv[]) {
 
     printf("Nombre total de mots : %d\n", nb_mots);
 
-    afficherListe(l_tout);
+    afficherListe(l_tout); 
 
-    afficherListe(l_unique);
+    afficherListe(l_unique); 
+
     return 0;
 }
