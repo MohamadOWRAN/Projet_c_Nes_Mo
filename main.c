@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <locale.h>
+#include <time.h>
 
 #define TAILLE 100
 
@@ -26,9 +27,9 @@ CellulePoint* allouerCellule(char *pval){
         free(cellule);
         return NULL;
     }
-
+    
     cellule->nb_occu = 1;
-
+ 
     cellule->suivant = NULL;
     return cellule;
 }
@@ -55,23 +56,12 @@ int len(ListeChar liste) {
 CellulePoint* chercherMot(ListeChar liste, const char *mot) {
     while (liste != NULL) {
         if (strcmp(liste->p, mot) == 0) {
-            liste->occ++;  
+   
             return liste;
         }
         liste = liste->suivant;
     }
     return NULL;
-}
-
-int compterOccurrences(ListeChar liste, const char *mot) {
-    int compteur = 0;
-    while (liste != NULL) {
-        if (chercherMot(liste, mot) != NULL) {  // cherche dans la sous-liste
-            compteur++;
-        }
-        liste = liste->suivant;
-    }
-    return compteur;
 }
 
 int est_lettre(int c) {
@@ -171,6 +161,11 @@ int main(int argc, char* argv[]) {
     int dans_mot = 0;
     int nb_mots = 0;
 
+    clock_t start, end;
+    double cpu_time_used;
+
+    start = clock();
+
     while ((c = fgetc(f)) != EOF) {
         if (est_separateur(c)) {
             if (dans_mot) {
@@ -182,42 +177,48 @@ int main(int argc, char* argv[]) {
                 CellulePoint* cellule = chercherMot(l, mot);
                 if (cellule == NULL){
                     ajouterEnTete(&l, mot);
-                }
+                } 
                 else{
                     cellule->nb_occu++;
                 }
             }
-
-        }
-
+        
+        } 
+        
         else {
             if (i < TAILLE - 1) {
                 mot[i++] = (char)tolower((unsigned char)c);
             }
             dans_mot = 1;
         }
-
+    
     }
-   /* Cas où le fichier se termine par une lettre */
+
     if (dans_mot) {
         mot[i] = '\0';
-        //printf("Mot lu : %s\n", mot);
+        //printf("Mot lu : %s\n", mot);     
         nb_mots++;
         CellulePoint* cellule = chercherMot(l, mot);
         if (cellule == NULL){
             ajouterEnTete(&l, mot);
-        }
+        } 
         else{
             cellule->nb_occu++;
         }
     }
 
     fclose(f);
-
+    
     printf("Nombre total de mots : %d\n", nb_mots);
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("Temps d'exécution : %f secondes\n", cpu_time_used);
 
     trierListeDecroissante(&l);
 
     afficherNPremiers(l, 5);
+
+    libererListe(&l);
+
     return 0;
 }
