@@ -9,11 +9,59 @@
 
 
 
-typedef struct CelluleVar {
+typedef struct CelluleVar { //struct pour l'algo 1
     char *valeur;
     int nb_occu;
     struct CelluleVar *suivant;
 } CelluleVar, *ListeVar ;
+
+typedef struct ListeAdapt { //struct pour l'algo 2
+    int*valeur;
+    int nb_elem;
+    int capacite;
+} ListeAdapt;
+
+typedef struct {
+size_t cumul_alloc; // champ obligatoire : cumul de l’espace mémoire alloué
+size_t cumul_desalloc; // champ obligatoire : cumul de l’espace mémoire désalloué
+ // d’autres champs qui sembleraient utiles
+} InfoMem;
+
+void* myMalloc(size_t size, InfoMem* infoMem){
+
+}
+
+void* myRealloc(void* ptr, size_t new_size, InfoMem* infoMem, size_t old_size){
+
+}
+void myFree(void* ptr, InfoMem* infoMem, size_t old_size){
+
+}
+
+
+void initListeAdapt(ListeAdapt *l, int capacite_initiale) {
+    l->valeur = malloc(capacite_initiale * sizeof(int));
+    if (l->valeur == NULL) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+    l->nb_elem = 0;
+    l->capacite = capacite_initiale;
+}
+
+void ajouterListeAdapt(ListeAdapt *l, int v) {
+    if (l->nb_elem == l->capacite) {
+        l->capacite *= 2;
+        int *tmp = realloc(l->valeur, l->capacite * sizeof(int));
+        if (tmp == NULL) {
+            perror("realloc");
+            free(l->valeur);
+            exit(EXIT_FAILURE);
+        }
+        l->valeur = tmp;
+    }
+    l->valeur[l->nb_elem++] = v;
+}
 
 
 CelluleVar* allouerCellule(char *pval){
@@ -153,8 +201,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    printf("%s\n", argv[1]);
-
     if(strcmp(argv[1],"-2") == 0){
         printf("Pas cool\n");
         //algo2
@@ -170,67 +216,69 @@ int main(int argc, char* argv[]) {
     else{
         //algo 1 default
         for(int num_file = 1; num_file < argc; num_file++){
-            FILE* f = fopen(argv[num_file], "r");
-            if (f == NULL) {
-                printf("Erreur dans l'ouverture du fichier\n");
-            }
+            if(num_file == 1 && argv[num_file][0] == '-'){ }
             else{
-                
+                FILE* f = fopen(argv[num_file], "r");
+                if (f == NULL) {
+                    printf("Erreur dans l'ouverture du fichier\n");
+                }
+                else{
+                    
 
 
-                char mot[TAILLE];
-                int i = 0;
+                    char mot[TAILLE];
+                    int i = 0;
 
-                int c;
-                int dans_mot = 0;
-                
+                    int c;
+                    int dans_mot = 0;
+                    
 
-                while ((c = fgetc(f)) != EOF) {
-                    if (est_separateur(c)) {
-                        if (dans_mot) {
-                            mot[i] = '\0';   // fin du mot
-                            //printf("Mot lu : %s\n", mot); // ou sauvegarde
-                            i = 0;
-                            dans_mot = 0;
-                            nb_mots++;
-                            CelluleVar* cellule = chercherMot(l, mot);
-                            if (cellule == NULL){
-                                ajouterEnTete(&l, mot);
-                            } 
-                            else{
-                                cellule->nb_occu++;
+                    while ((c = fgetc(f)) != EOF) {
+                        if (est_separateur(c)) {
+                            if (dans_mot) {
+                                mot[i] = '\0';   // fin du mot
+                                //printf("Mot lu : %s\n", mot); // ou sauvegarde
+                                i = 0;
+                                dans_mot = 0;
+                                nb_mots++;
+                                CelluleVar* cellule = chercherMot(l, mot);
+                                if (cellule == NULL){
+                                    ajouterEnTete(&l, mot);
+                                } 
+                                else{
+                                    cellule->nb_occu++;
+                                }
                             }
+                        
+                        } 
+                        
+                        else {
+                            if (i < TAILLE - 1) {
+                                mot[i++] = (char)tolower((unsigned char)c);
+                            }
+                            dans_mot = 1;
                         }
                     
-                    } 
-                    
-                    else {
-                        if (i < TAILLE - 1) {
-                            mot[i++] = (char)tolower((unsigned char)c);
+                    }
+
+                    if (dans_mot) {
+                        mot[i] = '\0';
+                        //printf("Mot lu : %s\n", mot);     
+                        nb_mots++;
+                        CelluleVar* cellule = chercherMot(l, mot);
+                        if (cellule == NULL){
+                            ajouterEnTete(&l, mot);
+                        } 
+                        else{
+                            cellule->nb_occu++;
                         }
-                        dans_mot = 1;
                     }
-                
-                }
 
-                if (dans_mot) {
-                    mot[i] = '\0';
-                    //printf("Mot lu : %s\n", mot);     
-                    nb_mots++;
-                    CelluleVar* cellule = chercherMot(l, mot);
-                    if (cellule == NULL){
-                        ajouterEnTete(&l, mot);
-                    } 
-                    else{
-                        cellule->nb_occu++;
-                    }
+                    fclose(f);
+                    
                 }
-
-                fclose(f);
-                
             }
         }
-    
         trierListeDecroissante(&l);
 
         printf("Nombre total de mots : %d\n", nb_mots);
