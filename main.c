@@ -27,20 +27,43 @@ size_t cumul_desalloc; // champ obligatoire : cumul de l’espace mémoire désa
  // d’autres champs qui sembleraient utiles
 } InfoMem;
 
-void* myMalloc(size_t size, InfoMem* infoMem){
-
+void initInfoMem(InfoMem *info) {
+    if (!info) return;
+    info->cumul_alloc = 0;
+    info->cumul_desalloc = 0;
 }
 
-void* myRealloc(void* ptr, size_t new_size, InfoMem* infoMem, size_t old_size){
-
+void* myMalloc(size_t size, InfoMem* InfoMem) {
+    void* ptr = malloc(size);
+    if (ptr && InfoMem) {
+        InfoMem->cumul_alloc += size;
+    }
+    return ptr;
 }
-void myFree(void* ptr, InfoMem* infoMem, size_t old_size){
 
+void* myRealloc(void* ptr, size_t new_size, InfoMem* InfoMem, size_t old_size) {
+    void* new_ptr = realloc(ptr, new_size);
+    if (!new_ptr) return NULL;
+
+    if (InfoMem) {
+        InfoMem->cumul_desalloc += old_size;
+        InfoMem->cumul_alloc += new_size;
+    }
+    return new_ptr;
+}
+
+void myFree(void* ptr, InfoMem* InfoMem, size_t old_size) {
+    if (!ptr) return;
+    free(ptr);
+    if (InfoMem) {
+        InfoMem->cumul_desalloc += old_size;
+    }
 }
 
 
-void initListeAdapt(ListeAdapt *l, int capacite_initiale) {
-    l->valeur = malloc(capacite_initiale * sizeof(char*));
+
+void initListeAdapt(ListeAdapt *l, int capacite_initiale, InfoMem *im) {
+    l->valeur = myMalloc(capacite_initiale * sizeof(char*), im);
     if (l->valeur == NULL) {
         perror("malloc");
         exit(EXIT_FAILURE);
@@ -66,11 +89,11 @@ int compterMotListeAdapt(ListeAdapt *l, const char *mot) {
     return nb_occu;
 }
 
-void ajouterListeAdapt(ListeAdapt *l, const char *mot) {
+void ajouterListeAdapt(ListeAdapt *l, const char *mot, InfoMem *im) {
 
     if (l->nb_elem == l->capacite) {
         l->capacite *= 2;
-        char **tmp = realloc(l->valeur, l->capacite * sizeof(char *));
+        char **tmp = myRealloc(l->valeur, l->capacite * sizeof(char *), im, l->capacite * sizeof(char *)/2);
         if (!tmp) {
             perror("realloc");
             exit(EXIT_FAILURE);
@@ -78,13 +101,14 @@ void ajouterListeAdapt(ListeAdapt *l, const char *mot) {
         l->valeur = tmp;
     }
 
-    l->valeur[l->nb_elem] = malloc(strlen(mot) + 1);
+    l->valeur[l->nb_elem] = myMalloc(strlen(mot) + 1, im);
     if (!l->valeur[l->nb_elem]) {
         perror("malloc");
         exit(EXIT_FAILURE);
     }
 
-    strcpy(l->valeur[l->nb_elem], mot);
+    l->valeur[l->nb_elem] = myMalloc(strlen(mot) + 1, im);
+    memcpy(l->valeur[l->nb_elem], mot, strlen(mot) + 1);
     l->nb_elem++;
 }
 
@@ -125,17 +149,17 @@ void afficherListeAdapt(ListeAdapt *l, int* lst_occu, int n){
     }
 }
 
-void libererListeAdapt(ListeAdapt *l) {
+void libererListeAdapt(ListeAdapt *l, InfoMem *im) {
     if (!l || !l->valeur) return;  // sécurité
 
     // Libérer chaque mot
     for (int i = 0; i < l->nb_elem; i++) {
-        free(l->valeur[i]);
+        myFree(l->valeur[i], im, strlen(l->valeur[i]) + 1);
         l->valeur[i] = NULL;
     }
 
     // Libérer le tableau de pointeurs
-    free(l->valeur);
+    myFree(l->valeur, im, l->capacite * sizeof(char*));
     l->valeur = NULL;
 
     // Réinitialiser les compteurs
@@ -143,18 +167,21 @@ void libererListeAdapt(ListeAdapt *l) {
     l->capacite = 0;
 }
 
-CelluleVar* allouerCellule(char *pval){
-    CelluleVar* cellule = malloc(sizeof(CelluleVar));
+CelluleVar* allouerCellule(char *pval, InfoMem *im){
+    CelluleVar* cellule = myMalloc(sizeof(CelluleVar), im);
 
     if (cellule == NULL) return NULL;
     
-    cellule->valeur = strdup(pval);
+    size_t taille = strlen(pval) + 1;
+    cellule->valeur = myMalloc(taille, im);
 
-    if (cellule->valeur == NULL) {
-        free(cellule);
+    if (cellule->valeur == NULL){
+        myFree(cellule, im, sizeof(CelluleVar));
         return NULL;
     }
     
+    memcpy(cellule->valeur, pval, taille);  
+
     cellule->nb_occu = 1;
  
     cellule->suivant = NULL;
@@ -162,8 +189,8 @@ CelluleVar* allouerCellule(char *pval){
 }
 
 
-void ajouterEnTete(ListeVar *liste, char *val) {
-    CelluleVar *c = allouerCellule(val);
+void ajouterEnTete(ListeVar *liste, char *val, InfoMem *im) {
+    CelluleVar *c = allouerCellule(val, im);
     if (c == NULL) return;
 
     c->suivant = *liste;
@@ -229,13 +256,13 @@ void afficherNPremiers(ListeVar liste, int n) {
 }
 
 
-void libererListe(ListeVar *liste) {
+void libererListe(ListeVar *liste, InfoMem *im) {
     CelluleVar *tmp;
     while (*liste != NULL) {
         tmp = *liste;
         *liste = (*liste)->suivant;
-        free(tmp->valeur);
-        free(tmp);
+        myFree(tmp->valeur, im, strlen(tmp->valeur));
+        myFree(tmp, im, sizeof(CelluleVar));
     }
 }
 
@@ -264,10 +291,17 @@ void trierListeDecroissante(ListeVar *liste) {
     }
 }
 
+void afficherInfoMem(InfoMem *im){
+    printf("Bilan memoire :\n");
+    printf("Cumul alloc : %zu\n", im->cumul_alloc);
+    printf("Cumul desalloc : %zu\n", im->cumul_desalloc);
+}
 
 int main(int argc, char* argv[]) {
 
-    
+    InfoMem im;
+    initInfoMem(&im);
+
     clock_t start, end;
     double cpu_time_used;
     start = clock();
@@ -285,8 +319,8 @@ int main(int argc, char* argv[]) {
         ListeAdapt l_uniq;
         ListeAdapt l_complet;
 
-        initListeAdapt(&l_uniq, 100);
-        initListeAdapt(&l_complet, 100);
+        initListeAdapt(&l_uniq, 100, &im);
+        initListeAdapt(&l_complet, 100, &im);
 
 
         for(int num_file = 1; num_file < argc; num_file++){
@@ -315,9 +349,9 @@ int main(int argc, char* argv[]) {
                                 i = 0;
                                 dans_mot = 0;
                                 nb_mots++;
-                                ajouterListeAdapt(&l_complet, mot);
+                                ajouterListeAdapt(&l_complet, mot, &im);
                                 if (contientMotListeAdapt(&l_uniq, mot) == 0){
-                                    ajouterListeAdapt(&l_uniq, mot);
+                                    ajouterListeAdapt(&l_uniq, mot, &im);
                                 }
                             }
                         
@@ -336,9 +370,9 @@ int main(int argc, char* argv[]) {
                         mot[i] = '\0';
                         //printf("Mot lu : %s\n", mot);     
                         nb_mots++;
-                        ajouterListeAdapt(&l_complet, mot);
+                        ajouterListeAdapt(&l_complet, mot, &im);
                         if (contientMotListeAdapt(&l_uniq, mot) == 0){
-                            ajouterListeAdapt(&l_uniq, mot);
+                            ajouterListeAdapt(&l_uniq, mot, &im);
                         }
                     }
 
@@ -347,7 +381,7 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        int lst_occu[l_uniq.nb_elem]; //algo2
+        int *lst_occu = myMalloc(l_uniq.nb_elem * sizeof(int), &im);
         for(int j = 0; j < l_uniq.nb_elem; j++){
             lst_occu[j] = compterMotListeAdapt(&l_complet, l_uniq.valeur[j]);
         }
@@ -361,11 +395,11 @@ int main(int argc, char* argv[]) {
 
         afficherListeAdapt(&l_uniq, lst_occu, 5);
 
-        libererListeAdapt(&l_uniq);
-        libererListeAdapt(&l_complet);
-
+        libererListeAdapt(&l_uniq, &im);
+        libererListeAdapt(&l_complet, &im);
+        myFree(lst_occu, &im, l_uniq.nb_elem * sizeof(int));
         
-
+        afficherInfoMem(&im);
 
     }
 
@@ -408,7 +442,7 @@ int main(int argc, char* argv[]) {
                                 nb_mots++;
                                 CelluleVar* cellule = chercherMot(l, mot);
                                 if (cellule == NULL){
-                                    ajouterEnTete(&l, mot);
+                                    ajouterEnTete(&l, mot, &im);
                                 } 
                                 else{
                                     cellule->nb_occu++;
@@ -432,7 +466,7 @@ int main(int argc, char* argv[]) {
                         nb_mots++;
                         CelluleVar* cellule = chercherMot(l, mot);
                         if (cellule == NULL){
-                            ajouterEnTete(&l, mot);
+                            ajouterEnTete(&l, mot, &im);
                         } 
                         else{
                             cellule->nb_occu++;
@@ -453,8 +487,9 @@ int main(int argc, char* argv[]) {
 
         afficherNPremiers(l, 5);
 
-        libererListe(&l);
+        libererListe(&l, &im);
 
+        afficherInfoMem(&im);
     }
 
 
