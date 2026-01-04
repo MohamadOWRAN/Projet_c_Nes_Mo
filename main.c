@@ -10,13 +10,13 @@
 
 
 typedef struct CelluleVar { //struct pour l'algo 1
-    char *valeur;
+    char* valeur;
     int nb_occu;
     struct CelluleVar *suivant;
 } CelluleVar, *ListeVar ;
 
 typedef struct ListeAdapt { //struct pour l'algo 2
-    int*valeur;
+    char** valeur;
     int nb_elem;
     int capacite;
 } ListeAdapt;
@@ -40,7 +40,7 @@ void myFree(void* ptr, InfoMem* infoMem, size_t old_size){
 
 
 void initListeAdapt(ListeAdapt *l, int capacite_initiale) {
-    l->valeur = malloc(capacite_initiale * sizeof(int));
+    l->valeur = malloc(capacite_initiale * sizeof(char*));
     if (l->valeur == NULL) {
         perror("malloc");
         exit(EXIT_FAILURE);
@@ -49,20 +49,44 @@ void initListeAdapt(ListeAdapt *l, int capacite_initiale) {
     l->capacite = capacite_initiale;
 }
 
-void ajouterListeAdapt(ListeAdapt *l, int v) {
+int contientMotListeAdapt(ListeAdapt *l, const char *mot) {
+    for (int i = 0; i < l->nb_elem; i++) {
+        if (strcmp(l->valeur[i], mot) == 0)
+            return 1;
+    }
+    return 0;
+}
+
+int compterMotListeAdapt(ListeAdapt *l, const char *mot) {
+    int nb_occu = 0;
+    for (int i = 0; i < l->nb_elem; i++) {
+        if (strcmp(l->valeur[i], mot) == 0)
+            nb_occu++;
+    }
+    return nb_occu;
+}
+
+void ajouterListeAdapt(ListeAdapt *l, const char *mot) {
+
     if (l->nb_elem == l->capacite) {
         l->capacite *= 2;
-        int *tmp = realloc(l->valeur, l->capacite * sizeof(int));
-        if (tmp == NULL) {
+        char **tmp = realloc(l->valeur, l->capacite * sizeof(char *));
+        if (!tmp) {
             perror("realloc");
-            free(l->valeur);
             exit(EXIT_FAILURE);
         }
         l->valeur = tmp;
     }
-    l->valeur[l->nb_elem++] = v;
-}
 
+    l->valeur[l->nb_elem] = malloc(strlen(mot) + 1);
+    if (!l->valeur[l->nb_elem]) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+
+    strcpy(l->valeur[l->nb_elem], mot);
+    l->nb_elem++;
+}
 
 CelluleVar* allouerCellule(char *pval){
     CelluleVar* cellule = malloc(sizeof(CelluleVar));
@@ -194,7 +218,6 @@ int main(int argc, char* argv[]) {
     start = clock();
 
     int nb_mots = 0;
-    ListeVar l = NULL;
 
     if (argc < 2) {
         printf("Usage: %s fichier.txt\n", argv[0]);
@@ -203,7 +226,76 @@ int main(int argc, char* argv[]) {
 
     if(strcmp(argv[1],"-2") == 0){
         printf("Pas cool\n");
-        //algo2
+
+        ListeAdapt l_uniq = Null;
+        ListeAdapt l_complet = Null;
+
+        initListeAdapt(&l_uniq, 100);
+        initListeAdapt(&l_complet, 100);
+
+
+        for(int num_file = 1; num_file < argc; num_file++){
+            if(num_file == 1 && argv[num_file][0] == '-'){ }
+            else{
+                FILE* f = fopen(argv[num_file], "r");
+                if (f == NULL) {
+                    printf("Erreur dans l'ouverture du fichier\n");
+                }
+                else{
+                    
+
+
+                    char mot[TAILLE];
+                    int i = 0;
+
+                    int c;
+                    int dans_mot = 0;
+                    
+
+                    while ((c = fgetc(f)) != EOF) {
+                        if (est_separateur(c)) {
+                            if (dans_mot) {
+                                mot[i] = '\0';   // fin du mot
+                                //printf("Mot lu : %s\n", mot); // ou sauvegarde
+                                i = 0;
+                                dans_mot = 0;
+                                nb_mots++;
+                                ajouterListeAdapt(&l_complet, mot);
+                                if (contientMotListeAdapt(&l_uniq, mot) == 0){
+                                    ajouterListeAdapt(&l_uniq, mot);
+                                }
+                            }
+                        
+                        } 
+                        
+                        else {
+                            if (i < TAILLE - 1) {
+                                mot[i++] = (char)tolower((unsigned char)c);
+                            }
+                            dans_mot = 1;
+                        }
+                    
+                    }
+
+                    if (dans_mot) {
+                        mot[i] = '\0';
+                        //printf("Mot lu : %s\n", mot);     
+                        nb_mots++;
+                        ajouterListeAdapt(&l_complet, mot);
+                        if (contientMotListeAdapt(&l_uniq, mot) == 0){
+                            ajouterListeAdapt(&l_uniq, mot);
+                        }
+                    }
+
+                    fclose(f);
+                    
+                }
+            }
+        }
+        int* lst_occu[l_uniq->capacite]; //algo2
+        for(int j = 0; j < l_uniq->capacite; j++){
+            lst_occu[j] = 0;
+        }
     }
 
 
@@ -215,6 +307,8 @@ int main(int argc, char* argv[]) {
     
     else{
         //algo 1 default
+        ListeVar l = NULL;
+
         for(int num_file = 1; num_file < argc; num_file++){
             if(num_file == 1 && argv[num_file][0] == '-'){ }
             else{
