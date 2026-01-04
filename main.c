@@ -88,6 +88,61 @@ void ajouterListeAdapt(ListeAdapt *l, const char *mot) {
     l->nb_elem++;
 }
 
+
+void trierListeAdaptDecroissant(ListeAdapt *l, int *lst_occu) {
+    for (int i = 0; i < l->nb_elem - 1; i++) {
+        int max = i;
+        for (int j = i + 1; j < l->nb_elem; j++) {
+            if (lst_occu[j] > lst_occu[max]) {
+                max = j;
+            }
+        }
+
+        if (max != i) {
+            // échange occurrences
+            int tmp = lst_occu[i];
+            lst_occu[i] = lst_occu[max];
+            lst_occu[max] = tmp;
+
+            // échange mots
+            char *tmp_mot = l->valeur[i];
+            l->valeur[i] = l->valeur[max];
+            l->valeur[max] = tmp_mot;
+        }
+    }
+}
+
+
+void afficherListeAdapt(ListeAdapt *l, int* lst_occu, int n){
+    if (l == NULL) {
+        printf("La liste est vide.\n");
+        return;
+    }
+    if(n > l->nb_elem) n = l->nb_elem;
+    printf("Liste des mots avec occurrences :\n");
+    for(int i = 0; i < n; i++){
+        printf("%s : %d\n", l->valeur[i], lst_occu[i]);
+    }
+}
+
+void libererListeAdapt(ListeAdapt *l) {
+    if (!l || !l->valeur) return;  // sécurité
+
+    // Libérer chaque mot
+    for (int i = 0; i < l->nb_elem; i++) {
+        free(l->valeur[i]);
+        l->valeur[i] = NULL;
+    }
+
+    // Libérer le tableau de pointeurs
+    free(l->valeur);
+    l->valeur = NULL;
+
+    // Réinitialiser les compteurs
+    l->nb_elem = 0;
+    l->capacite = 0;
+}
+
 CelluleVar* allouerCellule(char *pval){
     CelluleVar* cellule = malloc(sizeof(CelluleVar));
 
@@ -227,8 +282,8 @@ int main(int argc, char* argv[]) {
     if(strcmp(argv[1],"-2") == 0){
         printf("Pas cool\n");
 
-        ListeAdapt l_uniq = Null;
-        ListeAdapt l_complet = Null;
+        ListeAdapt l_uniq;
+        ListeAdapt l_complet;
 
         initListeAdapt(&l_uniq, 100);
         initListeAdapt(&l_complet, 100);
@@ -292,10 +347,26 @@ int main(int argc, char* argv[]) {
                 }
             }
         }
-        int* lst_occu[l_uniq->capacite]; //algo2
-        for(int j = 0; j < l_uniq->capacite; j++){
-            lst_occu[j] = 0;
+        int lst_occu[l_uniq.nb_elem]; //algo2
+        for(int j = 0; j < l_uniq.nb_elem; j++){
+            lst_occu[j] = compterMotListeAdapt(&l_complet, l_uniq.valeur[j]);
         }
+
+        trierListeAdaptDecroissant(&l_uniq, lst_occu);
+
+        printf("Nombre total de mots : %d\n", nb_mots);
+        end = clock();
+        cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+        printf("Temps d'exécution : %f secondes\n", cpu_time_used);
+
+        afficherListeAdapt(&l_uniq, lst_occu, 5);
+
+        libererListeAdapt(&l_uniq);
+        libererListeAdapt(&l_complet);
+
+        
+
+
     }
 
 
