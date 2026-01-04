@@ -9,21 +9,21 @@
 
 
 
-typedef struct cellulePoint {
-    char *p;
+typedef struct CelluleVar {
+    char *valeur;
     int nb_occu;
-    struct cellulePoint *suivant;
-} CellulePoint, *ListeChar ;
+    struct CelluleVar *suivant;
+} CelluleVar, *ListeVar ;
 
 
-CellulePoint* allouerCellule(char *pval){
-    CellulePoint* cellule = malloc(sizeof(CellulePoint));
+CelluleVar* allouerCellule(char *pval){
+    CelluleVar* cellule = malloc(sizeof(CelluleVar));
 
     if (cellule == NULL) return NULL;
     
-    cellule->p = strdup(pval);
+    cellule->valeur = strdup(pval);
 
-    if (cellule->p == NULL) {
+    if (cellule->valeur == NULL) {
         free(cellule);
         return NULL;
     }
@@ -35,15 +35,15 @@ CellulePoint* allouerCellule(char *pval){
 }
 
 
-void ajouterEnTete(ListeChar *liste, char *val) {
-    CellulePoint *c = allouerCellule(val);
+void ajouterEnTete(ListeVar *liste, char *val) {
+    CelluleVar *c = allouerCellule(val);
     if (c == NULL) return;
 
     c->suivant = *liste;
     *liste = c;
 }
 
-int len(ListeChar liste) {
+int len(ListeVar liste) {
     int compteur = 0;
     while (liste != NULL) {
         compteur++;
@@ -53,9 +53,9 @@ int len(ListeChar liste) {
 }
 
 
-CellulePoint* chercherMot(ListeChar liste, const char *mot) {
+CelluleVar* chercherMot(ListeVar liste, const char *mot) {
     while (liste != NULL) {
-        if (strcmp(liste->p, mot) == 0) {
+        if (strcmp(liste->valeur, mot) == 0) {
    
             return liste;
         }
@@ -74,20 +74,20 @@ int est_separateur(int c) {
 }
 
 
-void afficherListe(ListeChar liste) {
+void afficherListe(ListeVar liste) {
     if (liste == NULL) {
         printf("La liste est vide.\n");
         return;
     }
 
     printf("Liste des mots avec occurrences :\n");
-    for (ListeChar tmp = liste; tmp != NULL; tmp = tmp->suivant) {
-        printf("%s : %d\n", tmp->p, tmp->nb_occu);
+    for (ListeVar tmp = liste; tmp != NULL; tmp = tmp->suivant) {
+        printf("%s : %d\n", tmp->valeur, tmp->nb_occu);
     }
 }
 
 
-void afficherNPremiers(ListeChar liste, int n) {
+void afficherNPremiers(ListeVar liste, int n) {
     if (liste == NULL) {
         printf("La liste est vide.\n");
         return;
@@ -95,43 +95,43 @@ void afficherNPremiers(ListeChar liste, int n) {
 
     printf("Affichage des %d premiers termes :\n", n);
     int compteur = 0;
-    for (ListeChar tmp = liste; tmp != NULL && compteur < n; tmp = tmp->suivant) {
-        printf("%s : %d\n", tmp->p, tmp->nb_occu);
+    for (ListeVar tmp = liste; tmp != NULL && compteur < n; tmp = tmp->suivant) {
+        printf("%s : %d\n", tmp->valeur, tmp->nb_occu);
         compteur++;
     }
 }
 
 
-void libererListe(ListeChar *liste) {
-    CellulePoint *tmp;
+void libererListe(ListeVar *liste) {
+    CelluleVar *tmp;
     while (*liste != NULL) {
         tmp = *liste;
         *liste = (*liste)->suivant;
-        free(tmp->p);
+        free(tmp->valeur);
         free(tmp);
     }
 }
 
 
-void trierListeDecroissante(ListeChar *liste) {
+void trierListeDecroissante(ListeVar *liste) {
     if (*liste == NULL) return;
 
-    for (CellulePoint *i = *liste; i != NULL; i = i->suivant) {
-        CellulePoint *max = i;
-        for (CellulePoint *j = i->suivant; j != NULL; j = j->suivant) {
+    for (CelluleVar *i = *liste; i != NULL; i = i->suivant) {
+        CelluleVar *max = i;
+        for (CelluleVar *j = i->suivant; j != NULL; j = j->suivant) {
             if (j->nb_occu > max->nb_occu) {
                 max = j;
             }
         }
-        // échanger p et nb_occu
+        // échanger valeur et nb_occu
         if (max != i) {
-            char *tmp_p = i->p;
+            char *tmp_p = i->valeur;
             int tmp_nb = i->nb_occu;
 
-            i->p = max->p;
+            i->valeur = max->valeur;
             i->nb_occu = max->nb_occu;
 
-            max->p = tmp_p;
+            max->valeur = tmp_p;
             max->nb_occu = tmp_nb;
         }
     }
@@ -140,85 +140,110 @@ void trierListeDecroissante(ListeChar *liste) {
 
 int main(int argc, char* argv[]) {
 
+    
+    clock_t start, end;
+    double cpu_time_used;
+    start = clock();
+
+    int nb_mots = 0;
+    ListeVar l = NULL;
+
     if (argc < 2) {
         printf("Usage: %s fichier.txt\n", argv[0]);
         return 1;
     }
 
-    FILE* f = fopen(argv[1], "r");
-    if (f == NULL) {
-        printf("Erreur dans l'ouverture du fichier\n");
-        return 1;
+    printf("%s\n", argv[1]);
+
+    if(strcmp(argv[1],"-2") == 0){
+        printf("Pas cool\n");
+        //algo2
     }
 
-    ListeChar l = NULL;
 
 
-    char mot[TAILLE];
-    int i = 0;
+    else if(strcmp(argv[1],"-3") == 0){
+        //algo3
+    }
 
-    int c;
-    int dans_mot = 0;
-    int nb_mots = 0;
+    
+    else{
+        //algo 1 default
+        for(int num_file = 1; num_file < argc; num_file++){
+            FILE* f = fopen(argv[num_file], "r");
+            if (f == NULL) {
+                printf("Erreur dans l'ouverture du fichier\n");
+            }
+            else{
+                
 
-    clock_t start, end;
-    double cpu_time_used;
 
-    start = clock();
+                char mot[TAILLE];
+                int i = 0;
 
-    while ((c = fgetc(f)) != EOF) {
-        if (est_separateur(c)) {
-            if (dans_mot) {
-                mot[i] = '\0';   // fin du mot
-                //printf("Mot lu : %s\n", mot); // ou sauvegarde
-                i = 0;
-                dans_mot = 0;
-                nb_mots++;
-                CellulePoint* cellule = chercherMot(l, mot);
-                if (cellule == NULL){
-                    ajouterEnTete(&l, mot);
-                } 
-                else{
-                    cellule->nb_occu++;
+                int c;
+                int dans_mot = 0;
+                
+
+                while ((c = fgetc(f)) != EOF) {
+                    if (est_separateur(c)) {
+                        if (dans_mot) {
+                            mot[i] = '\0';   // fin du mot
+                            //printf("Mot lu : %s\n", mot); // ou sauvegarde
+                            i = 0;
+                            dans_mot = 0;
+                            nb_mots++;
+                            CelluleVar* cellule = chercherMot(l, mot);
+                            if (cellule == NULL){
+                                ajouterEnTete(&l, mot);
+                            } 
+                            else{
+                                cellule->nb_occu++;
+                            }
+                        }
+                    
+                    } 
+                    
+                    else {
+                        if (i < TAILLE - 1) {
+                            mot[i++] = (char)tolower((unsigned char)c);
+                        }
+                        dans_mot = 1;
+                    }
+                
                 }
+
+                if (dans_mot) {
+                    mot[i] = '\0';
+                    //printf("Mot lu : %s\n", mot);     
+                    nb_mots++;
+                    CelluleVar* cellule = chercherMot(l, mot);
+                    if (cellule == NULL){
+                        ajouterEnTete(&l, mot);
+                    } 
+                    else{
+                        cellule->nb_occu++;
+                    }
+                }
+
+                fclose(f);
+                
             }
-        
-        } 
-        
-        else {
-            if (i < TAILLE - 1) {
-                mot[i++] = (char)tolower((unsigned char)c);
-            }
-            dans_mot = 1;
         }
     
+        trierListeDecroissante(&l);
+
+        printf("Nombre total de mots : %d\n", nb_mots);
+        end = clock();
+        cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+        printf("Temps d'exécution : %f secondes\n", cpu_time_used);
+
+        afficherNPremiers(l, 5);
+
+        libererListe(&l);
+
     }
 
-    if (dans_mot) {
-        mot[i] = '\0';
-        //printf("Mot lu : %s\n", mot);     
-        nb_mots++;
-        CellulePoint* cellule = chercherMot(l, mot);
-        if (cellule == NULL){
-            ajouterEnTete(&l, mot);
-        } 
-        else{
-            cellule->nb_occu++;
-        }
-    }
-
-    fclose(f);
-    
-    printf("Nombre total de mots : %d\n", nb_mots);
-    end = clock();
-    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("Temps d'exécution : %f secondes\n", cpu_time_used);
-
-    trierListeDecroissante(&l);
-
-    afficherNPremiers(l, 5);
-
-    libererListe(&l);
 
     return 0;
 }
