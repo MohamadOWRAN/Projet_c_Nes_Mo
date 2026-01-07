@@ -6,32 +6,35 @@
 #include <time.h>
 
 #define TAILLE 100
+#define ALPHABET 26
 
 
-
-typedef struct CelluleVar { //struct pour l'algo 1
+typedef struct CelluleVar { 
     char* valeur;
     int nb_occu;
     struct CelluleVar *suivant;
 } CelluleVar, *ListeVar ;
 
-typedef struct ListeAdapt { //struct pour l'algo 2
+typedef struct ListeAdapt {
     char** valeur;
     int nb_elem;
     int capacite;
 } ListeAdapt;
 
 typedef struct {
-size_t cumul_alloc; // champ obligatoire : cumul de l’espace mémoire alloué
-size_t cumul_desalloc; // champ obligatoire : cumul de l’espace mémoire désalloué
- // d’autres champs qui sembleraient utiles
+size_t cumul_alloc;
+size_t cumul_desalloc;
 } InfoMem;
 
-void initInfoMem(InfoMem *info) {
-    if (!info) return;
-    info->cumul_alloc = 0;
-    info->cumul_desalloc = 0;
-}
+typedef struct Arbre {
+    struct Arbre *lettres[ALPHABET];
+    int nb_occu;                   
+} Arbre;
+
+typedef struct {
+    char *mot;
+    int nb_occu;
+} MotOccu;
 
 void* myMalloc(size_t size, InfoMem* InfoMem) {
     void* ptr = malloc(size);
@@ -60,7 +63,104 @@ void myFree(void* ptr, InfoMem* InfoMem, size_t old_size) {
     }
 }
 
+void parcoursArbre(
+    Arbre *a,
+    char *buffer,
+    int profondeur,
+    MotOccu *resultats,
+    int *nb_resultats,
+    InfoMem *im
+) {
+    if (!a) return;
 
+    if (a->nb_occu > 0) {
+        buffer[profondeur] = '\0';
+        resultats[*nb_resultats].mot = myMalloc(strlen(buffer) + 1, im);
+        strcpy(resultats[*nb_resultats].mot, buffer);
+        resultats[*nb_resultats].nb_occu = a->nb_occu;
+        (*nb_resultats)++;
+    }
+
+    for (int i = 0; i < ALPHABET; i++) {
+        if (a->lettres[i]) {
+            buffer[profondeur] = 'a' + i;
+            parcoursArbre(a->lettres[i], buffer, profondeur + 1,
+                          resultats, nb_resultats, im);
+        }
+    }
+}
+
+void libererArbre(Arbre *a, InfoMem *im) {
+    if (!a) return;
+
+    for (int i = 0; i < ALPHABET; i++) {
+        libererArbre(a->lettres[i], im);
+    }
+
+    myFree(a, im, sizeof(Arbre));
+}
+
+void initInfoMem(InfoMem *info) {
+    if (!info) return;
+    info->cumul_alloc = 0;
+    info->cumul_desalloc = 0;
+}
+
+
+
+
+Arbre* creerArbre(InfoMem *im) {
+    Arbre *a = myMalloc(sizeof(Arbre), im);
+    if (!a) return NULL;
+
+    for (int i = 0; i < ALPHABET; i++)
+        a->lettres[i] = NULL;
+
+    a->nb_occu = 0;
+    return a;
+}
+
+void insererMotArbre(Arbre *racine, const char *mot, InfoMem *im) {
+    Arbre *courant = racine;
+
+    for (int i = 0; mot[i] != '\0'; i++) {
+        if (!isalpha((unsigned char)mot[i])) continue;
+
+        int index = mot[i] - 'a';
+
+        if (courant->lettres[index] == NULL) {
+            courant->lettres[index] = creerArbre(im);
+        }
+        courant = courant->lettres[index];
+    }
+
+    courant->nb_occu++;
+}
+
+int comparerMotOccuDecroissant(const void *a, const void *b) {
+    const MotOccu *m1 = (const MotOccu *)a;
+    const MotOccu *m2 = (const MotOccu *)b;
+
+    return m2->nb_occu - m1->nb_occu;
+}
+
+void afficherNPlusPresents(MotOccu *resultats, int nb_resultats, int n) {
+    if (!resultats || nb_resultats == 0) {
+        printf("Aucun mot à afficher.\n");
+        return;
+    }
+
+    if (n > nb_resultats)
+        n = nb_resultats;
+
+    qsort(resultats, nb_resultats, sizeof(MotOccu),
+          comparerMotOccuDecroissant);
+
+    printf("Affichage des %d mots les plus fréquents :\n", n);
+    for (int i = 0; i < n; i++) {
+        printf("%s : %d\n", resultats[i].mot, resultats[i].nb_occu);
+    }
+}
 
 void initListeAdapt(ListeAdapt *l, int capacite_initiale, InfoMem *im) {
     l->valeur = myMalloc(capacite_initiale * sizeof(char*), im);
@@ -123,12 +223,10 @@ void trierListeAdaptDecroissant(ListeAdapt *l, int *lst_occu) {
         }
 
         if (max != i) {
-            // échange occurrences
             int tmp = lst_occu[i];
             lst_occu[i] = lst_occu[max];
             lst_occu[max] = tmp;
 
-            // échange mots
             char *tmp_mot = l->valeur[i];
             l->valeur[i] = l->valeur[max];
             l->valeur[max] = tmp_mot;
@@ -150,19 +248,16 @@ void afficherListeAdapt(ListeAdapt *l, int* lst_occu, int n){
 }
 
 void libererListeAdapt(ListeAdapt *l, InfoMem *im) {
-    if (!l || !l->valeur) return;  // sécurité
+    if (!l || !l->valeur) return;
 
-    // Libérer chaque mot
     for (int i = 0; i < l->nb_elem; i++) {
         myFree(l->valeur[i], im, strlen(l->valeur[i]) + 1);
         l->valeur[i] = NULL;
     }
 
-    // Libérer le tableau de pointeurs
     myFree(l->valeur, im, l->capacite * sizeof(char*));
     l->valeur = NULL;
 
-    // Réinitialiser les compteurs
     l->nb_elem = 0;
     l->capacite = 0;
 }
@@ -277,7 +372,6 @@ void trierListeDecroissante(ListeVar *liste) {
                 max = j;
             }
         }
-        // échanger valeur et nb_occu
         if (max != i) {
             char *tmp_p = i->valeur;
             int tmp_nb = i->nb_occu;
@@ -344,8 +438,7 @@ int main(int argc, char* argv[]) {
                     while ((c = fgetc(f)) != EOF) {
                         if (est_separateur(c)) {
                             if (dans_mot) {
-                                mot[i] = '\0';   // fin du mot
-                                //printf("Mot lu : %s\n", mot); // ou sauvegarde
+                                mot[i] = '\0';
                                 i = 0;
                                 dans_mot = 0;
                                 nb_mots++;
@@ -367,8 +460,7 @@ int main(int argc, char* argv[]) {
                     }
 
                     if (dans_mot) {
-                        mot[i] = '\0';
-                        //printf("Mot lu : %s\n", mot);     
+                        mot[i] = '\0';   
                         nb_mots++;
                         ajouterListeAdapt(&l_complet, mot, &im);
                         if (contientMotListeAdapt(&l_uniq, mot) == 0){
@@ -405,13 +497,72 @@ int main(int argc, char* argv[]) {
 
 
 
-    else if(strcmp(argv[1],"-3") == 0){
-        //algo3
+    else if (strcmp(argv[1], "-3") == 0) {
+
+        Arbre *racine = creerArbre(&im);
+
+        for (int num_file = 1; num_file < argc; num_file++) {
+            if (num_file == 1 && argv[num_file][0] == '-') continue;
+
+            FILE *f = fopen(argv[num_file], "r");
+            if (!f) continue;
+
+            char mot[TAILLE];
+            int i = 0, c, dans_mot = 0;
+
+            while ((c = fgetc(f)) != EOF) {
+                if (est_separateur(c)) {
+                    if (dans_mot) {
+                        mot[i] = '\0';
+                        insererMotArbre(racine, mot, &im);
+                        nb_mots++;
+                        i = 0;
+                        dans_mot = 0;
+                    }
+                } else {
+                    if (i < TAILLE - 1)
+                        mot[i++] = tolower(c);
+                    dans_mot = 1;
+                }
+            }
+
+            if (dans_mot) {
+                mot[i] = '\0';
+                insererMotArbre(racine, mot, &im);
+                nb_mots++;
+            }
+
+            fclose(f);
+        }
+
+        MotOccu *resultats = myMalloc(10000 * sizeof(MotOccu), &im);
+        int nb_resultats = 0;
+        char buffer[TAILLE];
+
+        parcoursArbre(racine, buffer, 0, resultats, &nb_resultats, &im);
+
+        printf("Nombre total de mots : %d\n", nb_mots);
+
+        end = clock();
+        cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+        printf("Temps d'exécution : %f secondes\n", cpu_time_used);
+
+        afficherNPlusPresents(resultats, nb_resultats, 5);
+
+        for (int i = 0; i < nb_resultats; i++) {
+            myFree(resultats[i].mot, &im, strlen(resultats[i].mot) + 1);
+        }
+        myFree(resultats, &im, nb_resultats * sizeof(MotOccu));
+
+        libererArbre(racine, &im);
+
+        afficherInfoMem(&im);
+
+        
     }
 
     
     else{
-        //algo 1 default
         ListeVar l = NULL;
 
         for(int num_file = 1; num_file < argc; num_file++){
@@ -435,8 +586,8 @@ int main(int argc, char* argv[]) {
                     while ((c = fgetc(f)) != EOF) {
                         if (est_separateur(c)) {
                             if (dans_mot) {
-                                mot[i] = '\0';   // fin du mot
-                                //printf("Mot lu : %s\n", mot); // ou sauvegarde
+                                mot[i] = '\0'; 
+
                                 i = 0;
                                 dans_mot = 0;
                                 nb_mots++;
@@ -462,7 +613,6 @@ int main(int argc, char* argv[]) {
 
                     if (dans_mot) {
                         mot[i] = '\0';
-                        //printf("Mot lu : %s\n", mot);     
                         nb_mots++;
                         CelluleVar* cellule = chercherMot(l, mot);
                         if (cellule == NULL){
