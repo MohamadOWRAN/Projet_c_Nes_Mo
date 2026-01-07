@@ -22,8 +22,11 @@ typedef struct ListeAdapt {
 } ListeAdapt;
 
 typedef struct {
-size_t cumul_alloc;
-size_t cumul_desalloc;
+    size_t cumul_alloc;   
+    size_t cumul_desalloc;  
+    size_t alloc_courant;   
+    size_t max_alloc;       
+    size_t nb_op;         
 } InfoMem;
 
 typedef struct Arbre {
@@ -36,56 +39,103 @@ typedef struct {
     int nb_occu;
 } MotOccu;
 
-void* myMalloc(size_t size, InfoMem* InfoMem) {
+typedef struct {
+    MotOccu *tab;
+    int nb;
+    int capacite;
+} TableauMotOccu;
+
+void* myMalloc(size_t size, InfoMem* im) {
     void* ptr = malloc(size);
-    if (ptr && InfoMem) {
-        InfoMem->cumul_alloc += size;
+    if (ptr && im) {
+        im->cumul_alloc += size;
+        im->alloc_courant += size;
+        if (im->alloc_courant > im->max_alloc) {
+            im->max_alloc = im->alloc_courant;
+        }
+        im->nb_op++;
     }
     return ptr;
 }
 
-void* myRealloc(void* ptr, size_t new_size, InfoMem* InfoMem, size_t old_size) {
+void* myRealloc(void* ptr, size_t new_size, InfoMem* im, size_t old_size) {
     void* new_ptr = realloc(ptr, new_size);
     if (!new_ptr) return NULL;
 
-    if (InfoMem) {
-        InfoMem->cumul_desalloc += old_size;
-        InfoMem->cumul_alloc += new_size;
+    if (im) {
+        im->cumul_desalloc += old_size;
+        im->cumul_alloc += new_size;
+
+        im->alloc_courant -= old_size;
+        im->alloc_courant += new_size;
+
+        if (im->alloc_courant > im->max_alloc) {
+            im->max_alloc = im->alloc_courant;
+        }
+
+        im->nb_op++;
     }
     return new_ptr;
 }
 
-void myFree(void* ptr, InfoMem* InfoMem, size_t old_size) {
+void myFree(void* ptr, InfoMem* im, size_t old_size) {
     if (!ptr) return;
     free(ptr);
-    if (InfoMem) {
-        InfoMem->cumul_desalloc += old_size;
+    if (im) {
+        im->cumul_desalloc += old_size;
+        im->alloc_courant -= old_size;
+        im->nb_op++;
     }
+}
+
+void initTableauMotOccu(TableauMotOccu *t, int capacite, InfoMem *im) {
+    t->tab = myMalloc(capacite * sizeof(MotOccu), im);
+    if (!t->tab) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
+    }
+    t->nb = 0;
+    t->capacite = capacite;
 }
 
 void parcoursArbre(
     Arbre *a,
     char *buffer,
     int profondeur,
-    MotOccu *resultats,
-    int *nb_resultats,
+    TableauMotOccu *res,
     InfoMem *im
 ) {
     if (!a) return;
 
     if (a->nb_occu > 0) {
+
+        if (res->nb == res->capacite) {
+            int ancienne_cap = res->capacite;
+            res->capacite *= 2;
+            MotOccu *tmp = myRealloc(
+                res->tab,
+                res->capacite * sizeof(MotOccu),
+                im,
+                ancienne_cap * sizeof(MotOccu)
+            );
+            if (!tmp) {
+                perror("realloc");
+                exit(EXIT_FAILURE);
+            }
+            res->tab = tmp;
+        }
+
         buffer[profondeur] = '\0';
-        resultats[*nb_resultats].mot = myMalloc(strlen(buffer) + 1, im);
-        strcpy(resultats[*nb_resultats].mot, buffer);
-        resultats[*nb_resultats].nb_occu = a->nb_occu;
-        (*nb_resultats)++;
+        res->tab[res->nb].mot = myMalloc(strlen(buffer) + 1, im);
+        strcpy(res->tab[res->nb].mot, buffer);
+        res->tab[res->nb].nb_occu = a->nb_occu;
+        res->nb++;
     }
 
     for (int i = 0; i < ALPHABET; i++) {
         if (a->lettres[i]) {
             buffer[profondeur] = 'a' + i;
-            parcoursArbre(a->lettres[i], buffer, profondeur + 1,
-                          resultats, nb_resultats, im);
+            parcoursArbre(a->lettres[i], buffer, profondeur + 1, res, im);
         }
     }
 }
@@ -104,6 +154,9 @@ void initInfoMem(InfoMem *info) {
     if (!info) return;
     info->cumul_alloc = 0;
     info->cumul_desalloc = 0;
+    info->alloc_courant = 0;
+    info->max_alloc = 0;
+    info->nb_op = 0;
 }
 
 
@@ -206,8 +259,6 @@ void ajouterListeAdapt(ListeAdapt *l, const char *mot, InfoMem *im) {
         perror("malloc");
         exit(EXIT_FAILURE);
     }
-
-    l->valeur[l->nb_elem] = myMalloc(strlen(mot) + 1, im);
     memcpy(l->valeur[l->nb_elem], mot, strlen(mot) + 1);
     l->nb_elem++;
 }
@@ -356,7 +407,7 @@ void libererListe(ListeVar *liste, InfoMem *im) {
     while (*liste != NULL) {
         tmp = *liste;
         *liste = (*liste)->suivant;
-        myFree(tmp->valeur, im, strlen(tmp->valeur));
+        myFree(tmp->valeur, im, strlen(tmp->valeur) + 1);
         myFree(tmp, im, sizeof(CelluleVar));
     }
 }
@@ -387,8 +438,10 @@ void trierListeDecroissante(ListeVar *liste) {
 
 void afficherInfoMem(InfoMem *im){
     printf("Bilan memoire :\n");
-    printf("Cumul alloc : %zu\n", im->cumul_alloc);
-    printf("Cumul desalloc : %zu\n", im->cumul_desalloc);
+    printf("Cumul alloc       : %zu octets\n", im->cumul_alloc);
+    printf("Cumul desalloc    : %zu octets\n", im->cumul_desalloc);
+    printf("Allocation max    : %zu octets\n", im->max_alloc);
+    printf("Nb operations mem : %zu\n", im->nb_op);
 }
 
 int main(int argc, char* argv[]) {
@@ -535,11 +588,11 @@ int main(int argc, char* argv[]) {
             fclose(f);
         }
 
-        MotOccu *resultats = myMalloc(10000 * sizeof(MotOccu), &im);
-        int nb_resultats = 0;
-        char buffer[TAILLE];
+        TableauMotOccu res;
+        initTableauMotOccu(&res, 128, &im);
 
-        parcoursArbre(racine, buffer, 0, resultats, &nb_resultats, &im);
+        char buffer[TAILLE];
+        parcoursArbre(racine, buffer, 0, &res, &im);
 
         printf("Nombre total de mots : %d\n", nb_mots);
 
@@ -547,12 +600,12 @@ int main(int argc, char* argv[]) {
         cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
         printf("Temps d'exécution : %f secondes\n", cpu_time_used);
 
-        afficherNPlusPresents(resultats, nb_resultats, 5);
+        afficherNPlusPresents(res.tab, res.nb, 5);
 
-        for (int i = 0; i < nb_resultats; i++) {
-            myFree(resultats[i].mot, &im, strlen(resultats[i].mot) + 1);
+        for (int i = 0; i < res.nb; i++) {
+        myFree(res.tab[i].mot, &im, strlen(res.tab[i].mot) + 1);
         }
-        myFree(resultats, &im, nb_resultats * sizeof(MotOccu));
+        myFree(res.tab, &im, res.capacite * sizeof(MotOccu));
 
         libererArbre(racine, &im);
 
