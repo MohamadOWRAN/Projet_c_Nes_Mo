@@ -550,7 +550,16 @@ int main(int argc, char* argv[]) {
         printf("Usage: %s fichier.txt\n", argv[0]);
         return 1;
     }
- 
+    
+    int nb_affichage = 5;
+
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "-n") == 0 && i + 1 < argc) {
+            nb_affichage = atoi(argv[i + 1]);
+            if (nb_affichage <= 0) nb_affichage = 5;
+        }
+    }
+
     if(strcmp(argv[1],"-2") == 0){
 
         ListeAdapt l_uniq;
@@ -709,7 +718,7 @@ int main(int argc, char* argv[]) {
         cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
         printf("Temps d'exécution : %f secondes\n", cpu_time_used);
 
-        afficherNPlusPresents(res.tab, res.nb, 5);
+        afficherNPlusPresents(res.tab, res.nb, nb_affichage);
 
         ecrireTableauMotOccuDansFichier(&res, "resultats.txt");
 
@@ -802,7 +811,7 @@ int main(int argc, char* argv[]) {
         cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
         printf("Temps d'exécution : %f secondes\n", cpu_time_used);
 
-        afficherNPremiers(l, 5);
+        afficherNPremiers(l, nb_affichage);
 
         ecrireListeVarDansFichier(l, "resultats.txt");
 
@@ -811,7 +820,7 @@ int main(int argc, char* argv[]) {
         afficherInfoMem(&im);
 
         algo = 1;
-        
+
         char nom_fichier[100];
         sprintf(nom_fichier, "bilan_memoire_algo%d_fichier%d.txt", algo, num_file);
         enregistrerInfoMem(&im, nom_fichier, cpu_time_used);
