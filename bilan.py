@@ -19,6 +19,48 @@ def lire_fichier_perf(nom_fichier):
                 perf[cle] = 0
     return perf
 
+def lire_resultats(nom_fichier):
+    """
+    Lit un fichier resultats.txt contenant un mot suivi de son nombre d'occurrences
+    Retourne deux listes : mots et occurrences
+    """
+    mots = []
+    occu = []
+    with open(nom_fichier, 'r') as f:
+        for ligne in f:
+            parts = ligne.strip().split()
+            if len(parts) != 2:
+                continue
+            mot, nombre = parts
+            try:
+                mots.append(mot)
+                occu.append(int(nombre))
+            except ValueError:
+                continue
+    return mots, occu
+
+def tracer_histogramme2(mots, occu, titre="Occurrences des mots", fichier_sortie="histogramme_mots.png"):
+    """
+    Trace un histogramme des mots et occurrences
+    """
+    plt.figure(figsize=(12, 6))
+
+    x = range(len(mots))
+    width = 0.6
+
+    couleur = "#6A5ACD"
+    couleur_fonce = "#1E3A8A" 
+
+    plt.bar(x, occu, color=couleur_fonce, width=width)
+
+    plt.xticks(x, mots, rotation=45, ha='right')
+    plt.ylabel("Occurrences")
+    plt.title(titre)
+    plt.tight_layout()
+    plt.savefig(fichier_sortie)
+    print(f"Histogramme sauvegardé dans {fichier_sortie}")
+    plt.show()
+
 def tracer_histogrammes(perfs, labels=None):
     if labels is None:
         labels = [f"Fichier {i+1}" for i in range(len(perfs))]
@@ -71,3 +113,11 @@ if __name__ == "__main__":
     perfs = [lire_fichier_perf(f) for f in fichiers_perf]
 
     tracer_histogrammes(perfs, labels)
+
+    noms_fichier = "resultats.txt"
+    mots, occu = lire_resultats(noms_fichier)
+
+    mots = mots[:20]
+    occu = occu[:20]
+
+    tracer_histogramme2(mots, occu, titre="Top 20 des mots les plus fréquents")
