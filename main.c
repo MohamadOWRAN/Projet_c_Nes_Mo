@@ -59,14 +59,22 @@ void* myMalloc(size_t size, InfoMem* im) {
 }
 
 void* myRealloc(void* ptr, size_t new_size, InfoMem* im, size_t old_size) {
+    if (!ptr) return myMalloc(new_size, im);
+    if (new_size == 0) {
+        myFree(ptr, im, old_size);
+        return NULL;
+    }
+
     void* new_ptr = realloc(ptr, new_size);
     if (!new_ptr) return NULL;
 
     if (im) {
-        im->cumul_desalloc += old_size;
-        im->cumul_alloc += new_size;
+        if (new_ptr != ptr) {
+            im->cumul_desalloc += old_size;
+        }
 
-        im->alloc_courant -= old_size;
+        im->cumul_alloc += new_size;
+        im->alloc_courant -= (new_ptr != ptr) ? old_size : 0;
         im->alloc_courant += new_size;
 
         if (im->alloc_courant > im->max_alloc) {
@@ -75,6 +83,7 @@ void* myRealloc(void* ptr, size_t new_size, InfoMem* im, size_t old_size) {
 
         im->nb_op++;
     }
+
     return new_ptr;
 }
 
@@ -471,7 +480,6 @@ void ecrireListeAdaptDansFichier(ListeAdapt *l, int *lst_occu, const char *nom_f
         return;
     }
 
-    // Écrire tous les mots avec occurrences
     for (int i = 0; i < l->nb_elem; i++) {
         fprintf(f, "%s %d\n", l->valeur[i], lst_occu[i]);
     }
@@ -515,7 +523,7 @@ void ecrireTableauMotOccuDansFichier(TableauMotOccu *res, const char *nom_fichie
 int mot_valide(const char *mot) {
     if (!mot) return 0;
     for (int i = 0; mot[i]; i++) {
-        if (isalpha((unsigned char)mot[i])) // Au moins une lettre
+        if (isalpha((unsigned char)mot[i]))
             return 1;
     }
     return 0;
@@ -536,7 +544,7 @@ int main(int argc, char* argv[]) {
         printf("Usage: %s fichier.txt\n", argv[0]);
         return 1;
     }
-
+ 
     if(strcmp(argv[1],"-2") == 0){
 
         ListeAdapt l_uniq;
