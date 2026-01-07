@@ -1,0 +1,6 @@
+Bilan memoire :
+Cumul alloc       : 17154824 octets
+Cumul desalloc    : 17154824 octets
+Allocation max    : 16632584 octets
+Nb operations mem : 207158
+Temps execution   : 0.045200 secondes

@@ -7,7 +7,7 @@
 
 #define TAILLE 100
 #define ALPHABET 26
-
+#define FICHIER_MEM "bilan_memoire.txt"
 
 typedef struct CelluleVar { 
     char* valeur;
@@ -86,6 +86,23 @@ void myFree(void* ptr, InfoMem* im, size_t old_size) {
         im->alloc_courant -= old_size;
         im->nb_op++;
     }
+}
+
+void enregistrerInfoMem(InfoMem *im, const char *nom_fichier, double temps) {
+    FILE *f = fopen(nom_fichier, "w");
+    if (!f) {
+        perror("Erreur ouverture fichier memoire");
+        return;
+    }
+
+    fprintf(f, "Bilan memoire :\n");
+    fprintf(f, "Cumul alloc       : %zu octets\n", im->cumul_alloc);
+    fprintf(f, "Cumul desalloc    : %zu octets\n", im->cumul_desalloc);
+    fprintf(f, "Allocation max    : %zu octets\n", im->max_alloc);
+    fprintf(f, "Nb operations mem : %zu\n", im->nb_op);
+    fprintf(f, "Temps execution   : %f secondes\n", temps);
+
+    fclose(f);
 }
 
 void initTableauMotOccu(TableauMotOccu *t, int capacite, InfoMem *im) {
@@ -369,7 +386,7 @@ int est_lettre(int c) {
 }
 
 int est_separateur(int c) {
-    const char *sep = " \n.,;:!?\'ʼ’";
+    const char *sep = " \n\r\t.,;:!?\'\"()[]{}«»—–-…“”‘’";
     return strchr(sep, c) != NULL;
 }
 
@@ -444,6 +461,57 @@ void afficherInfoMem(InfoMem *im){
     printf("Nb operations mem : %zu\n", im->nb_op);
 }
 
+
+void ecrireListeAdaptDansFichier(ListeAdapt *l, int *lst_occu, const char *nom_fichier) {
+    if (!l || !lst_occu) return;
+
+    FILE *f = fopen(nom_fichier, "w");
+    if (!f) {
+        perror("Erreur ouverture fichier");
+        return;
+    }
+
+    // Écrire tous les mots avec occurrences
+    for (int i = 0; i < l->nb_elem; i++) {
+        fprintf(f, "%s %d\n", l->valeur[i], lst_occu[i]);
+    }
+
+    fclose(f);
+}
+
+
+void ecrireListeVarDansFichier(ListeVar l, const char *nom_fichier) {
+    if (!l) return;
+
+    FILE *f = fopen(nom_fichier, "w");
+    if (!f) {
+        perror("Erreur ouverture fichier");
+        return;
+    }
+
+    for (ListeVar tmp = l; tmp != NULL; tmp = tmp->suivant) {
+        fprintf(f, "%s %d\n", tmp->valeur, tmp->nb_occu);
+    }
+
+    fclose(f);
+}
+
+void ecrireTableauMotOccuDansFichier(TableauMotOccu *res, const char *nom_fichier) {
+    if (!res || !res->tab) return;
+
+    FILE *f = fopen(nom_fichier, "w");
+    if (!f) {
+        perror("Erreur ouverture fichier");
+        return;
+    }
+
+    for (int i = 0; i < res->nb; i++) {
+        fprintf(f, "%s %d\n", res->tab[i].mot, res->tab[i].nb_occu);
+    }
+
+    fclose(f);
+}
+
 int main(int argc, char* argv[]) {
 
     InfoMem im;
@@ -490,7 +558,7 @@ int main(int argc, char* argv[]) {
 
                     while ((c = fgetc(f)) != EOF) {
                         if (est_separateur(c)) {
-                            if (dans_mot) {
+                            if (dans_mot && i > 0) {
                                 mot[i] = '\0';
                                 i = 0;
                                 dans_mot = 0;
@@ -512,7 +580,7 @@ int main(int argc, char* argv[]) {
                     
                     }
 
-                    if (dans_mot) {
+                    if (dans_mot && i > 0) {
                         mot[i] = '\0';   
                         nb_mots++;
                         ajouterListeAdapt(&l_complet, mot, &im);
@@ -540,11 +608,14 @@ int main(int argc, char* argv[]) {
 
         afficherListeAdapt(&l_uniq, lst_occu, 5);
 
+        ecrireListeAdaptDansFichier(&l_uniq, lst_occu, "resultats.txt");
+
         libererListeAdapt(&l_uniq, &im);
         libererListeAdapt(&l_complet, &im);
         myFree(lst_occu, &im, l_uniq.nb_elem * sizeof(int));
         
         afficherInfoMem(&im);
+        enregistrerInfoMem(&im, FICHIER_MEM, cpu_time_used);
 
     }
 
@@ -565,7 +636,7 @@ int main(int argc, char* argv[]) {
 
             while ((c = fgetc(f)) != EOF) {
                 if (est_separateur(c)) {
-                    if (dans_mot) {
+                    if (dans_mot && i > 0) {
                         mot[i] = '\0';
                         insererMotArbre(racine, mot, &im);
                         nb_mots++;
@@ -579,7 +650,7 @@ int main(int argc, char* argv[]) {
                 }
             }
 
-            if (dans_mot) {
+            if (dans_mot && i > 0) {
                 mot[i] = '\0';
                 insererMotArbre(racine, mot, &im);
                 nb_mots++;
@@ -602,6 +673,8 @@ int main(int argc, char* argv[]) {
 
         afficherNPlusPresents(res.tab, res.nb, 5);
 
+        ecrireTableauMotOccuDansFichier(&res, "resultats.txt");
+
         for (int i = 0; i < res.nb; i++) {
         myFree(res.tab[i].mot, &im, strlen(res.tab[i].mot) + 1);
         }
@@ -610,6 +683,7 @@ int main(int argc, char* argv[]) {
         libererArbre(racine, &im);
 
         afficherInfoMem(&im);
+        enregistrerInfoMem(&im, FICHIER_MEM, cpu_time_used);
 
         
     }
@@ -638,7 +712,7 @@ int main(int argc, char* argv[]) {
 
                     while ((c = fgetc(f)) != EOF) {
                         if (est_separateur(c)) {
-                            if (dans_mot) {
+                            if (dans_mot && i > 0) {
                                 mot[i] = '\0'; 
 
                                 i = 0;
@@ -664,7 +738,7 @@ int main(int argc, char* argv[]) {
                     
                     }
 
-                    if (dans_mot) {
+                    if (dans_mot && i > 0) {
                         mot[i] = '\0';
                         nb_mots++;
                         CelluleVar* cellule = chercherMot(l, mot);
@@ -690,9 +764,12 @@ int main(int argc, char* argv[]) {
 
         afficherNPremiers(l, 5);
 
+        ecrireListeVarDansFichier(l, "resultats.txt");
+
         libererListe(&l, &im);
 
         afficherInfoMem(&im);
+        enregistrerInfoMem(&im, FICHIER_MEM, cpu_time_used);
     }
 
 
