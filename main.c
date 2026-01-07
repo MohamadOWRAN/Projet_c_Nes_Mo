@@ -512,6 +512,15 @@ void ecrireTableauMotOccuDansFichier(TableauMotOccu *res, const char *nom_fichie
     fclose(f);
 }
 
+int mot_valide(const char *mot) {
+    if (!mot) return 0;
+    for (int i = 0; mot[i]; i++) {
+        if (isalpha((unsigned char)mot[i])) // Au moins une lettre
+            return 1;
+    }
+    return 0;
+}
+
 int main(int argc, char* argv[]) {
 
     InfoMem im;
@@ -529,7 +538,6 @@ int main(int argc, char* argv[]) {
     }
 
     if(strcmp(argv[1],"-2") == 0){
-        printf("Pas cool\n");
 
         ListeAdapt l_uniq;
         ListeAdapt l_complet;
@@ -560,13 +568,17 @@ int main(int argc, char* argv[]) {
                         if (est_separateur(c)) {
                             if (dans_mot && i > 0) {
                                 mot[i] = '\0';
+
+                                if (mot_valide(mot)) {
+                                    nb_mots++;
+                                    ajouterListeAdapt(&l_complet, mot, &im);
+                                    if (!contientMotListeAdapt(&l_uniq, mot)) {
+                                        ajouterListeAdapt(&l_uniq, mot, &im);
+                                    }
+                                }
+
                                 i = 0;
                                 dans_mot = 0;
-                                nb_mots++;
-                                ajouterListeAdapt(&l_complet, mot, &im);
-                                if (contientMotListeAdapt(&l_uniq, mot) == 0){
-                                    ajouterListeAdapt(&l_uniq, mot, &im);
-                                }
                             }
                         
                         } 
@@ -581,11 +593,12 @@ int main(int argc, char* argv[]) {
                     }
 
                     if (dans_mot && i > 0) {
-                        mot[i] = '\0';   
-                        nb_mots++;
-                        ajouterListeAdapt(&l_complet, mot, &im);
-                        if (contientMotListeAdapt(&l_uniq, mot) == 0){
-                            ajouterListeAdapt(&l_uniq, mot, &im);
+                        mot[i] = '\0';
+                        if (mot_valide(mot)) {
+                            nb_mots++;
+                            ajouterListeAdapt(&l_complet, mot, &im);
+                            if (!contientMotListeAdapt(&l_uniq, mot))
+                                ajouterListeAdapt(&l_uniq, mot, &im);
                         }
                     }
 
@@ -638,8 +651,12 @@ int main(int argc, char* argv[]) {
                 if (est_separateur(c)) {
                     if (dans_mot && i > 0) {
                         mot[i] = '\0';
-                        insererMotArbre(racine, mot, &im);
-                        nb_mots++;
+
+                        if (mot_valide(mot)) {
+                            insererMotArbre(racine, mot, &im);
+                            nb_mots++;
+                        }
+
                         i = 0;
                         dans_mot = 0;
                     }
@@ -652,8 +669,10 @@ int main(int argc, char* argv[]) {
 
             if (dans_mot && i > 0) {
                 mot[i] = '\0';
-                insererMotArbre(racine, mot, &im);
-                nb_mots++;
+                if (mot_valide(mot)) {
+                    insererMotArbre(racine, mot, &im);
+                    nb_mots++;
+                }
             }
 
             fclose(f);
@@ -713,18 +732,17 @@ int main(int argc, char* argv[]) {
                     while ((c = fgetc(f)) != EOF) {
                         if (est_separateur(c)) {
                             if (dans_mot && i > 0) {
-                                mot[i] = '\0'; 
+                                mot[i] = '\0';
+
+                                if (mot_valide(mot)) {
+                                    nb_mots++;
+                                    CelluleVar* cellule = chercherMot(l, mot);
+                                    if (!cellule) ajouterEnTete(&l, mot, &im);
+                                    else cellule->nb_occu++;
+                                }
 
                                 i = 0;
                                 dans_mot = 0;
-                                nb_mots++;
-                                CelluleVar* cellule = chercherMot(l, mot);
-                                if (cellule == NULL){
-                                    ajouterEnTete(&l, mot, &im);
-                                } 
-                                else{
-                                    cellule->nb_occu++;
-                                }
                             }
                         
                         } 
@@ -740,13 +758,11 @@ int main(int argc, char* argv[]) {
 
                     if (dans_mot && i > 0) {
                         mot[i] = '\0';
-                        nb_mots++;
-                        CelluleVar* cellule = chercherMot(l, mot);
-                        if (cellule == NULL){
-                            ajouterEnTete(&l, mot, &im);
-                        } 
-                        else{
-                            cellule->nb_occu++;
+                        if (mot_valide(mot)) {
+                            nb_mots++;
+                            CelluleVar* cellule = chercherMot(l, mot);
+                            if (!cellule) ajouterEnTete(&l, mot, &im);
+                            else cellule->nb_occu++;
                         }
                     }
 
