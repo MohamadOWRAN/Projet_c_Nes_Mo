@@ -3,4 +3,4 @@ Cumul alloc       : 17154823 octets
 Cumul desalloc    : 17154823 octets
 Allocation max    : 16632583 octets
 Nb operations mem : 207156
-Temps execution   : 0.047334 secondes
+Temps execution   : 0.048666 secondes

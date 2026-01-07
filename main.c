@@ -58,9 +58,19 @@ void* myMalloc(size_t size, InfoMem* im) {
     return ptr;
 }
 
+void myFree(void* ptr, InfoMem* im, size_t old_size) {
+    if (!ptr) return;
+    free(ptr);
+    if (im) {
+        im->cumul_desalloc += old_size;
+        im->alloc_courant -= old_size;
+        im->nb_op++;
+    }
+}
+
 void* myRealloc(void* ptr, size_t new_size, InfoMem* im, size_t old_size) {
     if (!ptr) return myMalloc(new_size, im);
-    if (new_size == 0) {
+    if (new_size == 0) {                    
         myFree(ptr, im, old_size);
         return NULL;
     }
@@ -69,12 +79,13 @@ void* myRealloc(void* ptr, size_t new_size, InfoMem* im, size_t old_size) {
     if (!new_ptr) return NULL;
 
     if (im) {
+
         if (new_ptr != ptr) {
             im->cumul_desalloc += old_size;
+            im->alloc_courant -= old_size;
         }
 
         im->cumul_alloc += new_size;
-        im->alloc_courant -= (new_ptr != ptr) ? old_size : 0;
         im->alloc_courant += new_size;
 
         if (im->alloc_courant > im->max_alloc) {
@@ -87,15 +98,7 @@ void* myRealloc(void* ptr, size_t new_size, InfoMem* im, size_t old_size) {
     return new_ptr;
 }
 
-void myFree(void* ptr, InfoMem* im, size_t old_size) {
-    if (!ptr) return;
-    free(ptr);
-    if (im) {
-        im->cumul_desalloc += old_size;
-        im->alloc_courant -= old_size;
-        im->nb_op++;
-    }
-}
+
 
 void enregistrerInfoMem(InfoMem *im, const char *nom_fichier, double temps) {
     FILE *f = fopen(nom_fichier, "w");
@@ -540,6 +543,9 @@ int main(int argc, char* argv[]) {
 
     int nb_mots = 0;
 
+    int algo = 0;
+    int num_file = 1; 
+
     if (argc < 2) {
         printf("Usage: %s fichier.txt\n", argv[0]);
         return 1;
@@ -636,7 +642,12 @@ int main(int argc, char* argv[]) {
         myFree(lst_occu, &im, l_uniq.nb_elem * sizeof(int));
         
         afficherInfoMem(&im);
-        enregistrerInfoMem(&im, FICHIER_MEM, cpu_time_used);
+
+        algo = 2;
+
+        char nom_fichier[100];
+        sprintf(nom_fichier, "bilan_memoire_algo%d_fichier%d.txt", algo, num_file);
+        enregistrerInfoMem(&im, nom_fichier, cpu_time_used);
 
     }
 
@@ -710,7 +721,12 @@ int main(int argc, char* argv[]) {
         libererArbre(racine, &im);
 
         afficherInfoMem(&im);
-        enregistrerInfoMem(&im, FICHIER_MEM, cpu_time_used);
+
+        algo = 3;
+
+        char nom_fichier[100];
+        sprintf(nom_fichier, "bilan_memoire_algo%d_fichier%d.txt", algo, num_file);
+        enregistrerInfoMem(&im, nom_fichier, cpu_time_used);
 
         
     }
@@ -720,7 +736,7 @@ int main(int argc, char* argv[]) {
         ListeVar l = NULL;
 
         for(int num_file = 1; num_file < argc; num_file++){
-            if(num_file == 1 && argv[num_file][0] == '-'){ }
+            if(argv[num_file][0] == '-') continue;
             else{
                 FILE* f = fopen(argv[num_file], "r");
                 if (f == NULL) {
@@ -793,7 +809,12 @@ int main(int argc, char* argv[]) {
         libererListe(&l, &im);
 
         afficherInfoMem(&im);
-        enregistrerInfoMem(&im, FICHIER_MEM, cpu_time_used);
+
+        algo = 1;
+        
+        char nom_fichier[100];
+        sprintf(nom_fichier, "bilan_memoire_algo%d_fichier%d.txt", algo, num_file);
+        enregistrerInfoMem(&im, nom_fichier, cpu_time_used);
     }
 
 
